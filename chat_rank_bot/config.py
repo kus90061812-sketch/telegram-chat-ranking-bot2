@@ -45,6 +45,18 @@ def _excluded_user_ids(value: str | None) -> frozenset[int]:
     return _telegram_user_ids("EXCLUDED_USER_IDS", value)
 
 
+def _super_admin_user_id(value: str | None) -> int | None:
+    if not value or not value.strip():
+        return None
+    try:
+        user_id = int(value.strip())
+    except ValueError as exc:
+        raise ValueError("SUPER_ADMIN_USER_ID must be a Telegram user ID") from exc
+    if user_id <= 0:
+        raise ValueError("SUPER_ADMIN_USER_ID must be greater than 0")
+    return user_id
+
+
 def _broadcast_interval_hours(value: str | None) -> int:
     if value is None or not value.strip():
         return 1
@@ -68,6 +80,7 @@ class Settings:
     min_message_interval_seconds: int
     duplicate_window_seconds: int
     excluded_user_ids: frozenset[int]
+    super_admin_user_id: int | None
     weekly_broadcast_interval_hours: int
 
     @classmethod
@@ -105,6 +118,9 @@ class Settings:
             ),
             duplicate_window_seconds=_as_int("DUPLICATE_WINDOW_SECONDS", 60, 0),
             excluded_user_ids=_excluded_user_ids(os.getenv("EXCLUDED_USER_IDS")),
+            super_admin_user_id=_super_admin_user_id(
+                os.getenv("SUPER_ADMIN_USER_ID")
+            ),
             weekly_broadcast_interval_hours=_broadcast_interval_hours(
                 os.getenv("WEEKLY_BROADCAST_INTERVAL_HOURS")
             ),

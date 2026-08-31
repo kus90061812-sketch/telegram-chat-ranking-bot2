@@ -335,6 +335,8 @@ class RankingBot:
         chat_id: int,
         user_id: int,
     ) -> bool:
+        if user_id == self.settings.super_admin_user_id:
+            return True
         if await asyncio.to_thread(
             self.storage.is_bot_admin, chat_id, user_id
         ):
@@ -365,15 +367,14 @@ class RankingBot:
         if not message or not chat or not actor:
             return
 
-        status = await self.telegram_admin_status(context, chat.id, actor.id)
-        if status is None:
+        if self.settings.super_admin_user_id is None:
             await message.reply_text(
-                "관리자 확인에 실패했습니다. 봇의 관리자 권한을 확인해주세요."
+                "Railway Variables에 SUPER_ADMIN_USER_ID를 설정해주세요."
             )
             return
-        if not status:
+        if actor.id != self.settings.super_admin_user_id:
             await message.reply_text(
-                "봇 관리자는 소통방의 실제 방장·관리자만 추가·삭제할 수 있습니다."
+                "이 명령어는 고유번호로 지정된 총관리자만 사용할 수 있습니다."
             )
             return
 
@@ -476,9 +477,12 @@ class RankingBot:
         sent_count = 0
         check_failed = False
         for chat_id in chat_ids:
-            manually_added = await asyncio.to_thread(
-                self.storage.is_bot_admin, chat_id, user_id
-            )
+            if user_id == self.settings.super_admin_user_id:
+                manually_added = True
+            else:
+                manually_added = await asyncio.to_thread(
+                    self.storage.is_bot_admin, chat_id, user_id
+                )
             if not manually_added:
                 status = await self.telegram_admin_status(
                     context, chat_id, user_id

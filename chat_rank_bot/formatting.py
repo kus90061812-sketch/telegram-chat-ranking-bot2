@@ -64,15 +64,15 @@ def weekly_ranking_message(entries: list[RankEntry], week_key: str) -> str:
         f"📆 <b>주간집계</b> · {week_label(week_key)}\n\n"
         f"{_ranking_rows(entries, show_prizes=True)}\n\n"
         "<b>매주 월요일 오후 6시 초기화 및 최종 순위 확정</b>\n"
-        "<b>주간 누적 입금 10만 원 이상 시 지급</b>\n"
-        f"문의 : {_telegram_profile_link('TB935')} , "
-        f"{_telegram_profile_link('tigertk52')}"
+        f"문의 : {_telegram_profile_link('zlzl6318')}"
     )
 
 
-def weekly_ranking_message(entries: list[RankEntry], week_key: str) -> str:
+def finalized_weekly_ranking_message(
+    entries: list[RankEntry], week_key: str
+) -> str:
     return (
-        f"📆 <b>주간집계</b> · {week_label(week_key)}\n\n"
+        f"🏆 <b>주간 확정 순위</b> · {week_label(week_key)}\n\n"
         f"{_ranking_rows(entries, show_prizes=True)}\n\n"
         "<b>매주 월요일 오후 6시 초기화 및 최종 순위 확정</b>\n"
         f"문의 : {_telegram_profile_link('zlzl6318')}"

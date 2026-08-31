@@ -63,12 +63,12 @@ class FormattingTests(unittest.TestCase):
             "매주 월요일 오후 6시 초기화 및 최종 순위 확정",
             result,
         )
-        self.assertIn("주간 누적 입금 10만 원 이상 시 지급", result)
+        self.assertNotIn("주간 누적 입금", result)
         self.assertIn(
-            '문의 : <a href="https://t.me/TB935">@TB935</a> , '
-            '<a href="https://t.me/tigertk52">@tigertk52</a>',
+            '문의 : <a href="https://t.me/zlzl6318">@zlzl6318</a>',
             result,
         )
+        self.assertNotIn("tigertk52", result)
 
     def test_finalized_weekly_ranking_is_clearly_labeled(self) -> None:
         result = finalized_weekly_ranking_message(

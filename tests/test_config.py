@@ -3,10 +3,18 @@ import unittest
 from chat_rank_bot.config import (
     _broadcast_interval_hours,
     _excluded_user_ids,
+    _super_admin_user_id,
 )
 
 
 class ConfigTests(unittest.TestCase):
+    def test_super_admin_user_id(self) -> None:
+        self.assertEqual(_super_admin_user_id(" 7936160142 "), 7936160142)
+        self.assertIsNone(_super_admin_user_id(""))
+        for value in ("관리자", "0", "-1"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                _super_admin_user_id(value)
+
     def test_excluded_user_ids_accept_commas_and_spaces(self) -> None:
         self.assertEqual(
             _excluded_user_ids("123, 456 789"),
