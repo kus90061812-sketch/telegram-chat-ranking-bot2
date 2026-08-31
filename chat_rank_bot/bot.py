@@ -7,7 +7,7 @@ from contextlib import suppress
 from datetime import datetime, timezone
 
 from telegram import LinkPreviewOptions, Update
-from telegram.constants import ChatMemberStatus, ChatType, ParseMode
+from telegram.constants import ChatType, ParseMode
 from telegram.error import TelegramError
 from telegram.ext import (
     Application,
@@ -145,6 +145,10 @@ class RankingBot:
             await self.show_weekly(update)
             return
         if command in ADMIN_RANKING_COMMANDS:
+            if not await self.has_bot_admin_permission(
+                message, context, chat.id, user.id
+            ):
+                return
             await message.reply_text(
                 "봇 개인채팅에서 .관리자순위 를 입력해주세요."
             )
@@ -163,7 +167,11 @@ class RankingBot:
             await self.show_me(update)
             return
         if command in HELP_COMMANDS:
-            await message.reply_text(help_message(), parse_mode=ParseMode.HTML)
+            include_admin = await self.is_bot_admin(chat.id, user.id)
+            await message.reply_text(
+                help_message(include_admin=include_admin),
+                parse_mode=ParseMode.HTML,
+            )
             return
 
         await self.count_message(update)
@@ -178,10 +186,17 @@ class RankingBot:
 
         text = message.text
         if is_slash_command(text, "start"):
-            await message.reply_text(
-                "개인채팅 연결 완료\n"
-                "여기에서 .관리자순위 를 입력하면 주간 5~10위를 보여드립니다."
-            )
+            admin_chat_ids = await self.bot_admin_chat_ids(user.id)
+            if admin_chat_ids:
+                await message.reply_text(
+                    "개인채팅 연결 완료\n"
+                    "여기에서 .관리자순위 를 입력하면 주간 5~10위를 보여드립니다."
+                )
+            else:
+                await message.reply_text(
+                    "개인채팅 연결 완료\n"
+                    "내 텔레그램 고유번호 확인: /내아이디"
+                )
             return
         if is_slash_command(text, "내아이디"):
             await message.reply_text(f"내 텔레그램 고유번호: {user.id}")
@@ -308,25 +323,28 @@ class RankingBot:
                 f"{target.full_name} 님은 집계 제외 상태가 아닙니다."
             )
 
-    async def telegram_admin_status(
-        self,
-        context: ContextTypes.DEFAULT_TYPE,
-        chat_id: int,
-        user_id: int,
-    ) -> bool | None:
-        try:
-            member = await context.bot.get_chat_member(chat_id, user_id)
-        except TelegramError:
-            LOGGER.exception(
-                "Failed to check Telegram administrator status for user %s in chat %s",
-                user_id,
-                chat_id,
+    async def is_bot_admin(self, chat_id: int, user_id: int) -> bool:
+        if user_id == self.settings.super_admin_user_id:
+            return True
+        return await asyncio.to_thread(
+            self.storage.is_bot_admin, chat_id, user_id
+        )
+
+    async def bot_admin_chat_ids(self, user_id: int) -> list[int]:
+        chat_ids = await asyncio.to_thread(self.storage.list_chat_ids)
+        if user_id == self.settings.super_admin_user_id:
+            return chat_ids
+        checks = await asyncio.gather(
+            *(
+                asyncio.to_thread(self.storage.is_bot_admin, chat_id, user_id)
+                for chat_id in chat_ids
             )
-            return None
-        return member.status in {
-            ChatMemberStatus.ADMINISTRATOR,
-            ChatMemberStatus.OWNER,
-        }
+        )
+        return [
+            chat_id
+            for chat_id, allowed in zip(chat_ids, checks)
+            if allowed
+        ]
 
     async def has_bot_admin_permission(
         self,
@@ -335,25 +353,12 @@ class RankingBot:
         chat_id: int,
         user_id: int,
     ) -> bool:
-        if user_id == self.settings.super_admin_user_id:
+        if await self.is_bot_admin(chat_id, user_id):
             return True
-        if await asyncio.to_thread(
-            self.storage.is_bot_admin, chat_id, user_id
-        ):
-            return True
-
-        status = await self.telegram_admin_status(context, chat_id, user_id)
-        if status is None:
-            await message.reply_text(
-                "관리자 확인에 실패했습니다. 봇의 관리자 권한을 확인해주세요."
-            )
-            return False
-        if not status:
-            await message.reply_text(
-                "이 명령어는 방장·관리자 또는 추가된 봇 관리자만 사용할 수 있습니다."
-            )
-            return False
-        return True
+        await message.reply_text(
+            "이 명령어는 총관리자 또는 .관리자추가로 등록된 봇 관리자만 사용할 수 있습니다."
+        )
+        return False
 
     async def handle_bot_admin_command(
         self,
@@ -372,10 +377,9 @@ class RankingBot:
                 "Railway Variables에 SUPER_ADMIN_USER_ID를 설정해주세요."
             )
             return
-        if actor.id != self.settings.super_admin_user_id:
-            await message.reply_text(
-                "이 명령어는 고유번호로 지정된 총관리자만 사용할 수 있습니다."
-            )
+        if not await self.has_bot_admin_permission(
+            message, context, chat.id, actor.id
+        ):
             return
 
         if command in BOT_ADMIN_LIST_COMMANDS:
@@ -475,23 +479,10 @@ class RankingBot:
         chat_ids = await asyncio.to_thread(self.storage.list_chat_ids)
         keys = period_keys(datetime.now(timezone.utc), self.settings.timezone)
         sent_count = 0
-        check_failed = False
+        allowed_chat_ids = set(await self.bot_admin_chat_ids(user_id))
         for chat_id in chat_ids:
-            if user_id == self.settings.super_admin_user_id:
-                manually_added = True
-            else:
-                manually_added = await asyncio.to_thread(
-                    self.storage.is_bot_admin, chat_id, user_id
-                )
-            if not manually_added:
-                status = await self.telegram_admin_status(
-                    context, chat_id, user_id
-                )
-                if status is None:
-                    check_failed = True
-                    continue
-                if not status:
-                    continue
+            if chat_id not in allowed_chat_ids:
+                continue
 
             try:
                 chat = await context.bot.get_chat(chat_id)
@@ -518,12 +509,9 @@ class RankingBot:
 
         if sent_count:
             return
-        if check_failed:
-            await message.reply_text(
-                "관리자 확인에 실패했습니다. 소통방에서 봇의 관리자 권한을 확인해주세요."
-            )
-            return
-        await message.reply_text("관리자로 확인되는 등록 소통방이 없습니다.")
+        await message.reply_text(
+            "총관리자 또는 .관리자추가로 등록된 소통방이 없습니다."
+        )
 
     async def show_me(self, update: Update) -> None:
         message = update.effective_message

@@ -128,15 +128,28 @@ class FormattingTests(unittest.TestCase):
         )
         self.assertIn("0회 · 집계 전", result)
 
-    def test_help_lists_new_commands(self) -> None:
+    def test_help_hides_admin_commands_from_regular_users(self) -> None:
         result = help_message()
         self.assertIn(".일일순위", result)
         self.assertIn(".주간순위", result)
+        self.assertIn(".나", result)
+        self.assertNotIn(".관리자순위", result)
+        self.assertNotIn(".관리자추가", result)
+        self.assertNotIn(".관리자삭제", result)
+        self.assertNotIn(".관리자목록", result)
+        self.assertNotIn(".제외목록", result)
+        self.assertNotIn(".채팅순위", result)
+
+    def test_help_lists_admin_commands_for_bot_admins(self) -> None:
+        result = help_message(include_admin=True)
+        self.assertIn("🛡 <b>관리자 명령어</b>", result)
         self.assertIn(".관리자순위", result)
         self.assertIn(".관리자추가", result)
         self.assertIn(".관리자삭제", result)
         self.assertIn(".관리자목록", result)
-        self.assertNotIn(".채팅순위", result)
+        self.assertIn(".제외", result)
+        self.assertIn(".제외해제", result)
+        self.assertIn(".제외목록", result)
 
 
 if __name__ == "__main__":
