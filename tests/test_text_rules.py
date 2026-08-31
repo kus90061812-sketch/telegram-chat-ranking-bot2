@@ -29,6 +29,14 @@ class TextRuleTests(unittest.TestCase):
         self.assertFalse(is_countable_text("ㅇㅇㅇㅇㅇ", 5))
         self.assertTrue(is_countable_text("안녕하세요", 5))
 
+    def test_only_real_letters_and_numbers_count_toward_length(self) -> None:
+        self.assertFalse(is_countable_text("아이쿠야", 5))
+        self.assertFalse(is_countable_text("아이쿠야!", 5))
+        self.assertFalse(is_countable_text("아이쿠야\u200b", 5))
+        self.assertFalse(is_countable_text("아이쿠야😀", 5))
+        self.assertTrue(is_countable_text("아이쿠야1", 5))
+        self.assertTrue(is_countable_text("안 녕 하 세 요", 5))
+
     def test_normalization_makes_duplicate_detection_stable(self) -> None:
         self.assertEqual(normalized_text("  안녕   하세요 "), "안녕 하세요")
         self.assertEqual(fingerprint("HELLO"), fingerprint("hello"))
