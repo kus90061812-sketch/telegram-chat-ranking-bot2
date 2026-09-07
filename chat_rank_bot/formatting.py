@@ -6,7 +6,7 @@ from .periods import day_label, week_label
 from .storage import BotAdmin, ExcludedUser, PersonalRank, RankEntry
 
 
-PRIZES = {1: "7만", 2: "5만", 3: "2만", 4: "1만"}
+PRIZES = {}
 DEFAULT_TOP_LIMIT = 4
 EMPTY_NAME = "집계 없음"
 DEFAULT_RANKING_FOOTER = "매주 월요일 오후 6시 초기화 및 최종 순위 확정\n문의 : @zlzl6318"
